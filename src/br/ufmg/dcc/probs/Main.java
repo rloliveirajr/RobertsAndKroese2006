@@ -1,61 +1,76 @@
 package br.ufmg.dcc.probs;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.Arrays;
 
+/**
+ * This class implements a simple way to execute the ST-Path algorithm implemented.
+ * 
+ * @author rloliveirajr
+ *
+ */
 public class Main {
 
-	/**
-	 * @param args
-	 * @throws FileNotFoundException 
-	 */
-	public static void main(String[] args) throws Exception {
-		//Type 1: Digraph Type 0: Graph 
-		int type = Integer.parseInt(args[2]);
-		
-		int start = Integer.parseInt(args[3]);
-		int end = Integer.parseInt(args[4]);
-		
-		int lenghtSample = Integer.parseInt(args[5]);
-		int naiveSample = Integer.parseInt(args[6]);
-		
-		String fileName = args[0];
-		BufferedReader br = new BufferedReader(new FileReader(fileName));
-		
-		int nodes = Integer.parseInt(br.readLine());
-		
-		int[][] graph = new int[nodes][nodes];
-		
-		for(int i = 0; i < nodes; i++){
-			Arrays.fill(graph[i], 0);
-		}		
-		
-		String line;
-		
-		while(br.ready()){
-			line = br.readLine();
-			
-			String[] edge = line.split(" ");
-			
-			int v1 = Integer.parseInt(edge[0]);
-			int v2 = Integer.parseInt(edge[1]);
-			
-			graph[v1][v2] = 1;
-			
-			if(type == 0){
-				graph[v2][v1] = 1;
-			}
+	public static void main(String[] args) throws Exception{
+		if(args.length < 1){
+			System.out.println("You must pass the graph data file.");
+			System.out.println("java -jar robertsKroese.jar graph.dat");
+			System.out.println("The file's format:");
+			System.out.println("   - First line: Number of graphs in the file;");
+			System.out.println("   - For each graph: ");
+			System.out.println("         * First line: Number of nodes;");
+			System.out.println("         * Second line: Number of samples extracted to calculate the Number of Paths.");
+			System.exit(0);
 		}
 		
-		NaivePathGeneration estimating = new NaivePathGeneration(graph);
-		estimating.setEnd(end);
-		estimating.setStart(start);
 		
-		long numberOfPaths = estimating.estimate(lenghtSample, naiveSample);
+		String fileName = args[0];
 		
-		System.out.print(numberOfPaths);
+		BufferedReader br = new BufferedReader(new FileReader(fileName));
+		
+		int nGraphs = Integer.parseInt(br.readLine());
+		
+		for(int g = 0; g < nGraphs; g++){
+			System.out.println("Graph (" + (g+1) + ")");
+			
+			int nodes = Integer.parseInt(br.readLine());
+			int naiveSample = Integer.parseInt(br.readLine());
+			
+			int[][] graph = new int[nodes][nodes];
+			
+			for(int i = 0; i < nodes; i++){
+				Arrays.fill(graph[i], 0);
+			}		
+			
+			String line;
+			
+			for(int i = 0; i < nodes; i++){
+				line = br.readLine();
+				
+				String[] edge = line.split(" ");
+				for(int j = 0; j < nodes; j++){
+					int edgeExist = Integer.parseInt(edge[j]);
+					graph[i][j] = edgeExist;
+				}
+			}
+
+			System.out.println("Estimating");
+			
+			for(int i = 0; i < nodes; i++){
+				for(int j = 0; j < nodes; j++){
+					if(i != j){
+						NaivePathGeneration estimating = new NaivePathGeneration(graph, i, j);
+						
+						double nPaths = estimating.estimate(naiveSample);
+						
+						System.out.println("Paths between " + i + " -> " + j + ": " + nPaths);
+					}
+				}
+			}
+			
+			System.exit(0);
+		}
 	}
 
 }

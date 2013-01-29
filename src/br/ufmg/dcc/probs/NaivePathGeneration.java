@@ -2,217 +2,135 @@ package br.ufmg.dcc.probs;
 
 import java.util.Arrays;
 import java.util.Random;
-import java.util.Vector;
 
+/**
+ * This class implements the algorithm Naive Path Generation proposed
+ * in Estimating the Number of s-t Paths in a Graph (2006) by Ben Roberts , Dirk P. Kroese.
+ * 
+ * Furthermore, it is implemented the estimator: (Notation in LaTeX)
+ * 
+ * |\overline{\mathcall{X}^{*}| = \frac{1}{N} \sum\limits^{N}_{i=1} \frac{I\{X^{i} \in \mathcall{X}^{*}\}}{g(X^{i})}
+ * 
+ * 
+ * @author rloliveirajr
+ * @since 2013-01-29
+ * @version 0.1
+ */
 public class NaivePathGeneration {
 
-	Vector<Vector<Integer>> paths;
+	/**
+	 * Graph representation
+	 */
 	int[][] graph;
+	
+	/**
+	 * Path first node;
+	 */
 	int start;
+	
+	/**
+	 * Path last node
+	 */
 	int end;
+	
+	/**
+	 * Constructor
+	 * 
+	 * @param graph Graph representation
+	 * @param start First node of path
+	 * @param end Last node of path
+	 */
+	public NaivePathGeneration(int[][] graph, int start, int end){
+		this.graph = graph;
+		this.start = start;
+		this.end = end;
+	}
 	
 	public NaivePathGeneration(int[][] graph){
 		this.graph = graph;
-		paths = new Vector<Vector<Integer>>();
 	}
 	
+	/**
+	 * Implementation of Naive Path Generation method.
+	 * 
+	 * @return double Likelihood of generated path
+	 */
 	double pathGeneration(){
-		Vector<Vector<Integer>> index = new Vector<Vector<Integer>>();
+		int[][] auxGraph = new int[graph.length][graph.length];
 		
+		//Create an auxiliar graph.
 		for(int i = 0; i < graph.length; i++){
-			Vector<Integer> neighborhood = new Vector<Integer>();
-			
-			for(int j = 0; j < graph[0].length; j++){
-				if(graph[i][j] > 0){
-					neighborhood.add(j);
-				}
+			for(int j = 0; j < graph.length; j++){
+				auxGraph[i][j] = graph[i][j];
 			}
-			index.add(neighborhood);
 		}
-		
-		Vector<Integer> path = new Vector<Integer>();
-		path.add(this.start);
-		
+
+		//Initialize current with the desired first node in the path
 		int current = this.start;
+		
+		//Likelihood of a path begins with start node is 1.
 		double likelihood = 1;
-		
-		boolean valid = true;
-		
-		do{
-			for(Vector<Integer> v : index){
-				if(v.contains(current)){
-					int pos = v.indexOf(current);
-					v.remove(pos);
+
+		//Starts create walk through the graph
+		do{	
+			
+			int[] neighborhood = auxGraph[current];
+			int neighborPos = 0;
+			
+			for(int i = 0; i < neighborhood.length; i++){
+				//Avoiding create a loop in the path
+				auxGraph[i][current] = 0;
+				
+				//Recovery the neighborhood of current node
+				if(auxGraph[current][i] == 1){
+					neighborhood[neighborPos] = i;
+					neighborPos++;
 				}
+				
 			}
 			
-			Vector<Integer> neighborhood = index.get(current);
-						
-			if(neighborhood.size() > 0){
+			//Just adjust the neighborhood size
+			neighborhood = Arrays.copyOf(neighborhood, neighborPos);
+
+			//If there are next nodes to be chosen
+			if(neighborhood.length > 0){
 				Random random = new Random();
-				
-				int nextVertexPos = random.nextInt(neighborhood.size());
-				
-				int nextVertex = index.get(current).get(nextVertexPos);
-				
-				path.add(nextVertex);
+
+				int nextVertexPos = random.nextInt(neighborhood.length);
+
+				int nextVertex = neighborhood[nextVertexPos];
 				
 				current = nextVertex;
-				likelihood = likelihood/(double)neighborhood.size();
+				
+				likelihood = likelihood/(double)neighborhood.length;
 
-			}else{
-				valid = false;
+			}else{//Otherwise the path generated is invalid
+				return -1;
 			}
-			
-		}while(current != this.end && valid);
 
-		paths.add(path);
+		}while(current != this.end);
 		
 		return likelihood;
 	}
 	
-	double[] lengthDistributionVector(int sampleSize){
-		double[] likelihood = new double[sampleSize];
-		
-		for(int i = 0; i < sampleSize; i++){
-			double pathLikelihood = this.pathGeneration();
-			likelihood[i] = pathLikelihood;
-		}
-		
-		double[] lenghtDistributionHate = new double[this.graph.length];
-		
-		for(int k = 0; k < this.graph.length; k++){
-			double lk = 0;
-			for(int i = 0; i < paths.size(); i++){
-				Vector<Integer> path = paths.get(i);
-				
-				int isStPathInd = path.lastElement() == end?1:0;
-				
-				int isSizeEqualsK = path.size() == k?1:0;
-				double pathLikelihood = likelihood[i];
-				double upper = (isSizeEqualsK*isStPathInd)/pathLikelihood;
-				
-				int isSizeEqualsGreaterThanK = path.size() >= k?1:0;
-				int isXkConnectedToEnd = 0;
-				
-				int last = path.get(path.size()-2);
-				if(isSizeEqualsGreaterThanK == 1 && this.graph[last][end] == 1){
-					isXkConnectedToEnd = 1;
-				}
-				double down = (isXkConnectedToEnd*isSizeEqualsGreaterThanK*isStPathInd)/pathLikelihood;
-				
-				lk += upper/down;
-			}
-			
-			lenghtDistributionHate[k] = lk;
-		}
-		
-		return lenghtDistributionHate;
-	}
-	
-	double[] lengthDistributionMethod(int lenghDistributionSample, int naiveSample){
-		double[] lHate = this.lengthDistributionVector(naiveSample);
-		
-		double[] likelihoodInd = new double[lenghDistributionSample]; 
-		
-		Arrays.fill(likelihoodInd, -1);
-		
-		for(int l = 0; l < lenghDistributionSample; l++){
-			Vector<Vector<Integer>> index = new Vector<Vector<Integer>>();
-			
-			for(int i = 0; i < graph.length; i++){
-				Vector<Integer> neighborhood = new Vector<Integer>();
-				
-				for(int j = 0; j < graph[0].length; j++){
-					if(graph[i][j] > 0){
-						neighborhood.add(j);
-					}
-				}
-				index.add(neighborhood);
-			}
-			
-			Vector<Integer> path = new Vector<Integer>();
-			path.add(this.start);
-			
-			int current = this.start;
-			double likelihood = 1;
-			
-			boolean stop = false;
-			boolean valid = true;
-			int pathSize = 1;
-			
-			do{
-				for(Vector<Integer> v : index){
-					if(v.contains(current)){
-						int pos = v.indexOf(current);
-						v.remove(pos);
-					}
-				}
-				
-				Vector<Integer> neighborhood = index.get(current);
-				
-				if(neighborhood.contains(end)){
-					
-					if(neighborhood.size() > 1){
-						
-						Random random = new Random();
-						double choose = random.nextDouble();
-						
-						if(choose <= lHate[pathSize]){
-							path.add(end);
-							likelihood = likelihood * lHate[pathSize];
-							stop = true;
-						}else{
-							likelihood = likelihood * (1-lHate[pathSize]);
-							int endIndex = neighborhood.indexOf(end);
-							neighborhood.remove(endIndex);
-						}					
-					}else{
-						path.add(end);
-						stop = true;
-					}
-				}
-				
-				if(!stop && neighborhood.size() > 0){
-					Random random = new Random();
-					
-					int nextVertexPos = random.nextInt(neighborhood.size());
-					
-					int nextVertex = index.get(current).get(nextVertexPos);
-					
-					path.add(nextVertex);
-					
-					current = nextVertex;
-					likelihood = likelihood/(double)neighborhood.size();
-					
-					pathSize++;
-	
-				}else{
-					valid = false;
-				}			
-			}while(valid && !stop);
-			
-			if(valid){
-				likelihoodInd[l] = likelihood;
+	/**
+	 * This method implements the |\overline{\mathcall{X}^{*}}| estimator.
+	 * 
+	 * @param naiveSample Size of sample
+	 * @return double Number of ST-Paths between Start and End nodes
+	 */
+	public double estimate(int naiveSample){
+		double x = 0.0;
+		for(int i = 0; i < naiveSample; i++){
+			double probs = this.pathGeneration();
+			if(probs > -1){
+				x += 1/probs;
 			}
 		}
 		
-		return likelihoodInd;
-	}
-	
-	public long estimate(int lenghDistributionSample, int naiveSample){
-		double[] estimate = this.lengthDistributionMethod(lenghDistributionSample, naiveSample);
+		x /= (double)naiveSample;
 		
-		double x = 0;
-		for(int i = 0; i < lenghDistributionSample; i++){
-			if(estimate[i] > -1){
-				x += 1/estimate[i];
-			}
-		}
-		
-		x /= lenghDistributionSample;
-		
-		return (long) x;
+		return x;
 	}
 	
 	public void setStart(int start){
